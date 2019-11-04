@@ -127,7 +127,7 @@ var UIController = (function () {
     inputDescription: '.add__description',
     inputValue: '.add__value',
     inputBtn: '.add__btn',
-    icomeContainer: '.income__list',
+    incomeContainer: '.income__list',
     expensesContainer: '.expenses__list'
   };
 
@@ -171,7 +171,7 @@ var UIController = (function () {
 
 
       // 3. Insert the HTML into the DOM
-      document.querySelector(element).insertAdjacentHTML('beforeend')
+      document.querySelector(element).insertAdjacentHTML('beforeend', newHtml);
 
 
     },
@@ -231,6 +231,7 @@ var controller = (function (budgetCtrl, UICtrl) {
     newItem = budgetCtrl.addItem(input.type, input.description, input.value);
 
     // 3. Add new item to UI
+    UICtrl.addListItem(newItem, input.type);
 
     // 4. Calculate the budget
 

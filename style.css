@@ -282,6 +282,7 @@ h2 {
         grid-template-rows: 1fr;
         max-width: 100%;
         text-align: center;
+        margin: 0 auto;
     }
     .add__description {
         width: 220px;
