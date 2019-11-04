@@ -31,6 +31,11 @@
 
 //************************************************************/
 
+
+
+
+
+
 //                BUDGET CONTROLLER MODULE
 // We use the module pattern to make private, closures and iife
 // data model for expenses and income
@@ -49,6 +54,25 @@ var budgetController = (function () {
     this.value = value;
   };
 
+  var calculateTotal = function (type) {
+    var sum = 0;
+
+    // loop over array
+    data.allItems[type].forEach(function (cur) {
+      sum += cur.value;
+    });
+    /*
+    initial sum: 0
+    [200,400,100]
+    sum = 0 + 200
+    sum = 200 + 400
+    sum = 600 + 100 = 700
+    */
+
+    // Store sums in data var below
+    data.totals[type] = sum;
+  };
+
   //                   ALl Expenses
   // var allExpenses = [];
   // var allIncomes = [];
@@ -62,11 +86,14 @@ var budgetController = (function () {
       exp: [],
       inc: []
     },
-
     totals: {
       exp: 0,
       inc: 0
-    }
+    },
+    // for calculateBudge
+    budget: 0,
+    // set to -1 usually used to something nonexistent
+    percentage: -1
 
   };
 
@@ -102,7 +129,43 @@ var budgetController = (function () {
       return newItem;
 
     },
+    // create function for the CtrlAddItem
+    calculateBudget: function () {
+      // Calculate total sums of income and expenses private func
+      calculateTotal('exp');
+      calculateTotal('inc');
 
+      // Calculate the budget: income - expenses
+      data.budget = data.totals.inc - data.totals.exp;
+
+      // Calculate the percentage of income we spent
+      if (data.totals.inc > 0) {
+        // Expense = 100 and icome 200, spent 50% = 100 / 200 = 0.5 * 100... we have to round to 2 decimals instead of alot of thm
+        data.percentage = Math.round((data.totals.exp / data.totals.inc) * 100);
+      } else {
+        data.percentage = -1;
+      }
+
+
+
+    },
+    // return something from data structure
+    getBudget: function () {
+
+      // use object to return four values
+      return {
+        // place where we stored result of calculation
+        budget: data.budget,
+        // total income
+        totalInc: data.totals.inc,
+        // expeneses
+        totalExp: data.totals.exp,
+        // percentage
+        percentage: data.percentage
+      };
+
+    },
+    // ONLY FOR DEVELOPMENT NOT FOR PRODUCTION
     testing: function () {
       console.log(data);
 
@@ -110,10 +173,6 @@ var budgetController = (function () {
   }
 
 })();
-
-
-
-
 
 
 
@@ -128,7 +187,11 @@ var UIController = (function () {
     inputValue: '.add__value',
     inputBtn: '.add__btn',
     incomeContainer: '.income__list',
-    expensesContainer: '.expenses__list'
+    expensesContainer: '.expenses__list',
+    budgetLabel: '.budget__value',
+    incomeLabel: '.budget__income--value',
+    expenseLabel: '.budget__expenses--value',
+    percentageLabel: '.budget__expenses--percentage'
   };
 
   // public function/method
@@ -146,7 +209,8 @@ var UIController = (function () {
         // type will be either inc or exp
         type: document.querySelector(DOMstrings.inputType).value,
         description: document.querySelector(DOMstrings.inputDescription).value,
-        value: document.querySelector(DOMstrings.inputValue).value
+        // this originally returns a string so we convert to number
+        value: parseFloat(document.querySelector(DOMstrings.inputValue).value)
       };
     },
     // we need the object and type(income or expense)
@@ -172,23 +236,56 @@ var UIController = (function () {
 
       // 3. Insert the HTML into the DOM
       document.querySelector(element).insertAdjacentHTML('beforeend', newHtml);
+    },
 
+    // Clear Fields
+    clearFields: function () {
+      var fields, fieldsArr;
+
+      fields = document.querySelectorAll(DOMstrings.inputDescription + ', ' + DOMstrings.inputValue);
+
+      // turn fields into an ARRAY with slice... using the call method and then passing fields var into it, so it becomes the "this" variable
+      // fields.slice() // its in the array 
+
+      // All the methods that arrays inherit from the arr func constructors are in the arr prototype property, so that means the slice method must be there
+      fieldsArr = Array.prototype.slice.call(fields);
+
+      // Now we can loop and clearr fields once we turn into array
+      // Accepts 3 values, first is current value of the arr that is being processed, second index(zero to the length of the arr minus one, the entire arr)
+      fieldsArr.forEach(function (current, index, array) {
+        // we want to clear all input fields
+        current.value = "";
+      });
+
+      // Sets focused on first input after submitting
+      fieldsArr[0].focus();
 
     },
+    // need budget where all data is stored we use (obj)
+    displayBudget: function (obj) {
+
+      document.querySelector(DOMstrings.budgetLabel).textContent = obj.budget;
+      document.querySelector(DOMstrings.incomeLabel).textContent = obj.totalInc;
+      document.querySelector(DOMstrings.expenseLabel).textContent = obj.totalExp;
+
+
+      if (obj.percentage > 0) {
+        document.querySelector(DOMstrings.percentageLabel).textContent = obj.percentage + '%';
+      } else {
+        document.querySelector(DOMstrings.percentageLabel).textContent = '---';
+      }
+
+    },
+    // Get Dom strings
     getDOMstrings: function () {
       // return our private DOMstrings into the public
       return DOMstrings;
+
     }
   };
 
 
 })();
-
-
-
-
-
-
 
 
 
@@ -219,6 +316,25 @@ var controller = (function (budgetCtrl, UICtrl) {
     });
   };
 
+
+
+  // update budget for steps 5 and 6 from ctrlAddItem
+  var updateBudget = function () {
+    // 1. Calculate the budget
+    budgetCtrl.calculateBudget();
+
+    // 2. return the budget function
+    var budget = budgetCtrl.getBudget();
+
+    // 3. Display budget on the UI
+    // console.log(budget);
+    UICtrl.displayBudget(budget);
+
+
+  }
+
+
+
   // Custom function
   var ctrlAddItem = function () {
     var input, newItem;
@@ -227,16 +343,20 @@ var controller = (function (budgetCtrl, UICtrl) {
     input = UICtrl.getinput();
     // console.log(input);
 
-    // 2. Add item to the budget controller
-    newItem = budgetCtrl.addItem(input.type, input.description, input.value);
+    // use this cause it shows NaN when you press the enter button again... if desc is not blank, and if its not NaN it should be #
+    if (input.description !== "" && !isNaN(input.value) && input.value > 0) {
+      // 2. Add item to the budget controller
+      newItem = budgetCtrl.addItem(input.type, input.description, input.value);
 
-    // 3. Add new item to UI
-    UICtrl.addListItem(newItem, input.type);
+      // 3. Add new item to UI
+      UICtrl.addListItem(newItem, input.type);
 
-    // 4. Calculate the budget
+      // 4. Clear the fields
+      UICtrl.clearFields();
 
-    // 5. Display budget on the UI
-
+      // 5. calculate and update budget
+      updateBudget();
+    }
 
     // console.log('It works!');
   };
@@ -245,6 +365,14 @@ var controller = (function (budgetCtrl, UICtrl) {
   return {
     init: function () {
       console.log('App has started...');
+      // run in the beginning set all inputs to 0
+      UICtrl.displayBudget({
+        budget: 0,
+        totalInc: 0,
+        totalExp: 0,
+        percentage: -1
+      });
+
       setupEventListeners();
     }
   };
